@@ -1,0 +1,52 @@
+<?xml version="1.0" ?>
+<launch>
+  <arg name="paused" default="false"/>
+  <arg name="gui" default="true"/>
+  <arg name="headless" default="false"/>
+  <arg name="debug" default="false"/>
+  <arg name="verbose" default="false"/>
+  <arg name="world_name" default="$(find ouster_description)/worlds/example.world"/>
+  <arg name="model" default="$(find ouster_description)/urdf/on_drone.urdf.xacro"/>
+
+  <!-- Start gazebo and load the world -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch" >
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="gui" value="$(arg gui)"/>
+    <arg name="headless" value="$(arg headless)"/>
+    <arg name="debug" value="$(arg debug)"/>
+    <arg name="verbose" value="$(arg verbose)"/>
+    <arg name="world_name" value="$(arg world_name)"/>
+  </include>
+
+  <!-- Spawn the example robot -->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder '$(arg model)'" />
+  <arg name="sdf" default="$(find ouster_description)/example/model.sdf"/>
+  <node name="spawn_sensor" pkg="gazebo_ros" type="spawn_model" output="screen" args="-sdf -file $(arg sdf) -model example"/>
+  <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
+    <param name="publish_frequency" type="double" value="30.0" />
+  </node>
+  
+  <!-- RViz -->
+  <arg name="rviz" default="true"/>
+  <node if="$(arg rviz)" pkg="rviz" type="rviz" name="$(anon rviz)" respawn="false" output="screen" args="-d $(find ouster_description)/rviz/example2.rviz" />
+
+
+  <!-- PX4 configs -->
+  <arg name="vehicle" default="iris"/>
+  <env name="PX4_SIM_MODEL" value="$(arg vehicle)" />
+  <env name="PX4_ESTIMATOR" value="ekf2)" />
+  <node name="sitl" pkg="px4" type="px4" output="screen"
+        args="$(find px4)/build/px4_sitl_default/etc -s etc/init.d-posix/rcS" required="true"/>
+  
+  <!-- MAVROS configs -->
+  <arg name="fcu_url" default="udp://:14540@localhost:14557"/>
+  <arg name="respawn_mavros" default="false"/>
+
+  <!-- MAVROS -->
+  <include file="$(find mavros)/launch/px4.launch">
+    <!-- GCS link is provided by SITL -->
+    <arg name="gcs_url" value=""/>
+    <arg name="fcu_url" value="$(arg fcu_url)"/>
+    <arg name="respawn_mavros" value="$(arg respawn_mavros)"/>
+  </include>
+</launch>
